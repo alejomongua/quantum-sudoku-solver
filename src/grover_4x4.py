@@ -1,3 +1,7 @@
+# Implementación del algoritmo de Grover para un sudoku de 4x4
+# basado en la implementación de Avery Parkinson:
+# https://averyparkinson23.medium.com/solving-sudoku-using-quantum-computing-cbc8a397a504
+
 import matplotlib.pyplot as plt
 import numpy as np
 
