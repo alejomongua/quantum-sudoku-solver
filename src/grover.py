@@ -14,7 +14,24 @@ def XOR(qc, a, b, output):
 
 
 def sudoku_oracle(qc, clause_list, var_qubits, clause_qubits, output_qubit):
+    """
+    Create a quantum circuit which solves a 2 x 2 sudoku grid.
+    This function modifies the circuit in place and does not return anything.
+
+    Args:
+        qc (QuantumCircuit): The quantum circuit to add the oracle to.
+        clause_list (list): A list of tuples, each containing two literals.
+        var_qubits (QuantumRegister): The quantum register representing the
+            variable qubits.
+        clause_qubits (QuantumRegister): The quantum register representing the
+            clause qubits.
+        output_qubit (QuantumRegister): The quantum register representing the
+            output qubit.
+    """
     i = 0
+
+    # Computes XOR operations for all the pairs. The final state is 1 if
+    # all the clauses are satisfied, that is, if the sudoku grid is solved.
     for clause in clause_list:
         XOR(qc, var_qubits[clause[0]], var_qubits[clause[1]], clause_qubits[i])
         i += 1
@@ -22,6 +39,7 @@ def sudoku_oracle(qc, clause_list, var_qubits, clause_qubits, output_qubit):
     qc.mcx(clause_qubits, output_qubit)
 
     i = 0
+    # Uncompute clauses to reset clause qubits to the zero state.
     for clause in clause_list:
         XOR(qc, var_qubits[clause[0]], var_qubits[clause[1]], clause_qubits[i])
         i += 1
