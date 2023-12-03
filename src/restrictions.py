@@ -1,11 +1,9 @@
 import math
 from qiskit.quantum_info import SparsePauliOp, Pauli
 
-QUBITS_PER_NUMBER = 2
 
-
-def qubit_idx(row, col, num, cols):
-    return (row * cols + col) * QUBITS_PER_NUMBER + num
+def qubit_idx(row, col, num, cols, qubits_per_cell):
+    return (row * cols + col) * qubits_per_cell + num
 
 
 def single_qubit_z(qubit_index, total_qubits):
@@ -14,61 +12,61 @@ def single_qubit_z(qubit_index, total_qubits):
     return SparsePauliOp(Pauli(''.join(pauli_str)))
 
 
-def one_number_per_cell(alpha, rows, cols):
-    total_qubits = rows * cols * QUBITS_PER_NUMBER
+def one_number_per_cell(alpha, rows, cols, qubits_per_cell):
+    total_qubits = rows * cols * qubits_per_cell
     ops = []
     for row in range(rows):
         for col in range(cols):
             z0 = single_qubit_z(
-                qubit_idx(row, col, 0, cols), total_qubits)
+                qubit_idx(row, col, 0, cols, qubits_per_cell), total_qubits)
             z1 = single_qubit_z(
-                qubit_idx(row, col, 1, cols), total_qubits)
+                qubit_idx(row, col, 1, cols, qubits_per_cell), total_qubits)
             identidad = SparsePauliOp(Pauli('I' * total_qubits))
             cell_penalty = (z0 + z1 - identidad) ** 2
             ops.append(alpha * cell_penalty)
     return sum(ops)
 
 
-def unique_number_per_row(alpha, rows, cols):
-    total_qubits = rows * cols * QUBITS_PER_NUMBER
+def unique_number_per_row(alpha, rows, cols, qubits_per_cell):
+    total_qubits = rows * cols * qubits_per_cell
     ops = []
     for row in range(rows):
-        for num in range(QUBITS_PER_NUMBER):
+        for num in range(qubits_per_cell):
             for col1 in range(cols):
                 for col2 in range(col1 + 1, cols):
                     z1 = single_qubit_z(
-                        qubit_idx(row, col1, num, cols), total_qubits)
+                        qubit_idx(row, col1, num, cols, qubits_per_cell), total_qubits)
                     z2 = single_qubit_z(
-                        qubit_idx(row, col2, num, cols), total_qubits)
+                        qubit_idx(row, col2, num, cols, qubits_per_cell), total_qubits)
                     combined_op = z1.compose(z2)
                     ops.append(alpha * combined_op)
     return sum(ops)
 
 
-def unique_number_per_column(alpha, rows, cols):
-    total_qubits = rows * cols * QUBITS_PER_NUMBER
+def unique_number_per_column(alpha, rows, cols, qubits_per_cell):
+    total_qubits = rows * cols * qubits_per_cell
     ops = []
     for col in range(cols):
-        for num in range(QUBITS_PER_NUMBER):
+        for num in range(qubits_per_cell):
             for row1 in range(rows):
                 for row2 in range(row1 + 1, rows):
                     z1 = single_qubit_z(
-                        qubit_idx(row1, col, num, cols), total_qubits)
+                        qubit_idx(row1, col, num, cols, qubits_per_cell), total_qubits)
                     z2 = single_qubit_z(
-                        qubit_idx(row2, col, num, cols), total_qubits)
+                        qubit_idx(row2, col, num, cols, qubits_per_cell), total_qubits)
                     combined_op = z1.compose(z2)
                     ops.append(alpha * combined_op)
     return sum(ops)
 
 
-def unique_number_per_subgrid(alpha, rows, cols):
-    total_qubits = rows * cols * QUBITS_PER_NUMBER
+def unique_number_per_subgrid(alpha, rows, cols, qubits_per_cell):
+    total_qubits = rows * cols * qubits_per_cell
     ops = []
     # Ajustar según la lógica del Sudoku más pequeño
     subgrid_size = math.isqrt(rows)
     for subgrid_row in range(rows // subgrid_size):
         for subgrid_col in range(cols // subgrid_size):
-            for num in range(QUBITS_PER_NUMBER):
+            for num in range(qubits_per_cell):
                 for i in range(subgrid_size):
                     for j in range(subgrid_size):
                         cell1 = (subgrid_row * subgrid_size + i,
@@ -79,21 +77,21 @@ def unique_number_per_subgrid(alpha, rows, cols):
                                     cell2 = (subgrid_row * subgrid_size + k,
                                              subgrid_col * subgrid_size + l)
                                     z1 = single_qubit_z(
-                                        qubit_idx(*cell1, num, cols), total_qubits)
+                                        qubit_idx(*cell1, num, cols, qubits_per_cell), total_qubits)
                                     z2 = single_qubit_z(
-                                        qubit_idx(*cell2, num, cols), total_qubits)
+                                        qubit_idx(*cell2, num, cols, qubits_per_cell), total_qubits)
                                     combined_op = z1.compose(z2)
                                     ops.append(alpha * combined_op)
     return sum(ops)
 
 
-def create_hamiltonian(alpha, rows, cols=None):
+def create_hamiltonian(alpha, rows, qubits_per_cell, cols=None):
     if cols is None:
         cols = rows
-    H = one_number_per_cell(alpha, rows, cols) \
-        + unique_number_per_row(alpha, rows, cols) \
-        + unique_number_per_column(alpha, rows, cols) \
-        + unique_number_per_subgrid(alpha, rows, cols)
+    H = one_number_per_cell(alpha, rows, cols, qubits_per_cell) \
+        + unique_number_per_row(alpha, rows, cols, qubits_per_cell) \
+        + unique_number_per_column(alpha, rows, cols, qubits_per_cell) \
+        + unique_number_per_subgrid(alpha, rows, cols, qubits_per_cell)
     return H
 
 
@@ -113,8 +111,10 @@ if __name__ == '__main__':
     if len(sys.argv) > 3:
         alpha = int(sys.argv[3])
 
-    H = one_number_per_cell(alpha, rows, cols) \
-        + unique_number_per_row(alpha, rows, cols) \
-        + unique_number_per_column(alpha, rows, cols) \
-        + unique_number_per_subgrid(alpha, rows, cols)
+    qubits_per_cell = 4
+
+    H = one_number_per_cell(alpha, rows, cols, qubits_per_cell) \
+        + unique_number_per_row(alpha, rows, cols, qubits_per_cell) \
+        + unique_number_per_column(alpha, rows, cols, qubits_per_cell) \
+        + unique_number_per_subgrid(alpha, rows, cols, qubits_per_cell)
     print(H)

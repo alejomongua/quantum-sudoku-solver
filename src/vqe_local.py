@@ -3,7 +3,7 @@ import os
 import sys
 import pickle
 
-from qiskit import IBMQ, QuantumRegister, transpile, assemble
+from qiskit import QuantumRegister, transpile, assemble, Aer
 from qiskit.utils import QuantumInstance
 from qiskit.circuit import Parameter, QuantumCircuit
 from qiskit.circuit.library import RYGate, CXGate
@@ -16,9 +16,9 @@ from restrictions import create_hamiltonian
 
 QUBITS_PER_CELL = 2
 SUDOKU_ROWS = 2
-SUDOKU_COLS = 4
-ALPHA = 1000
-TOTAL_QUBITS = SUDOKU_COLS * SUDOKU_ROWS * QUBITS_PER_CELL
+SUDOKU_COLS = 2
+ALPHA = 100
+TOTAL_QUBITS = SUDOKU_COLS * SUDOKU_ROWS, QUBITS_PER_CELL
 
 
 def create_subgrids(num_rows, num_cols, subgrid_rows=None, subgrid_cols=None):
@@ -101,23 +101,11 @@ def store_intermediate_result(eval_count, parameters, mean, std):
 
 
 if __name__ == '__main__':
-    # Agregar el directorio padre al path para poder importar el archivo config.py
-    parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-    sys.path.append(parent_dir)
-
-    from config import api_key
-
-    H = create_hamiltonian(ALPHA, SUDOKU_ROWS, SUDOKU_COLS)
+    H = create_hamiltonian(ALPHA, SUDOKU_ROWS, QUBITS_PER_CELL, SUDOKU_COLS)
 
     H_converted = convert_to_paulisumop(H)
 
-    # Cargar la cuenta de IBM Q
-    IBMQ.save_account(api_key, overwrite=True)
-    IBMQ.load_account()
-
-    provider = IBMQ.get_provider(hub='ibm-q')
-    backend = provider.get_backend('ibmq_qasm_simulator')
+    backend = Aer.get_backend('qasm_simulator')
 
     quantum_instance = QuantumInstance(backend, shots=20000)
 
@@ -150,16 +138,21 @@ if __name__ == '__main__':
     # La configuración de qubits más probable es nuestra solución
     solution = max(counts, key=counts.get)
 
+    print(solution)
+
     # Decodificar la solución en formato de Sudoku
     sudoku_solution = []
-    for i in range(SUDOKU_COLS * SUDOKU_ROWS):
-        bits = solution[i * QUBITS_PER_CELL: (i + 1) * QUBITS_PER_CELL]
-        # Convertir de binario a decimal y ajustar el rango 1-4
-        number = int(bits, 2) + 1
-        sudoku_solution.append(number)
 
-    # Imprimir la solución del Sudoku
-    for i, val in enumerate(sudoku_solution):
-        print(f" {val} ", end='')
-        if (i + 1) % SUDOKU_COLS == 0:
-            print()
+    for i in range(SUDOKU_ROWS):
+        row = []
+        for j in range(SUDOKU_COLS):
+            idx = i * SUDOKU_COLS + j
+            number = solution[idx * QUBITS_PER_CELL:idx *
+                              QUBITS_PER_CELL + QUBITS_PER_CELL]
+            number = int(number, 2)
+            row.append(number)
+        sudoku_solution.append(row)
+
+    # Imprimir la solución
+    for row in sudoku_solution:
+        print(row)
